@@ -43,11 +43,10 @@ jobs:
       - name: Install nak (Nostr CLI)
         run: |
           # Install nak from GitHub releases
-          NAK_VERSION="0.3.0"
-          curl -LO "https://github.com/0xtrm/nak/releases/download/v${NAK_VERSION}/nak_${NAK_VERSION}_linux_amd64.tar.gz"
-          tar xzf "nak_${NAK_VERSION}_linux_amd64.tar.gz"
-          chmod +x nak
-          sudo mv nak /usr/local/bin/
+          NAK_VERSION="0.17.3"
+          curl -LO "https://github.com/fiatjaf/nak/releases/download/v${NAK_VERSION}/nak-v${NAK_VERSION}-linux-amd64"
+          chmod +x "nak-v${NAK_VERSION}-linux-amd64"
+          sudo mv "nak-v${NAK_VERSION}-linux-amd64" /usr/local/bin/nak
           nak --version
       
       - name: Configure Git
