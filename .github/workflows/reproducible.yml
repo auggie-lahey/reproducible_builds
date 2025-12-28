@@ -45,10 +45,11 @@ jobs:
       
       - name: Install nak (Nostr CLI)
         run: |
-          go install -tags=debug github.com/fiatjaf/nak@latest
+          go install -tags=debug github.com/fiatjaf/nak@latest > /dev/null 2>&1
           nak --version
           #nak req -k 30617 -k 30618 pyramid.treegaze.com gitnostr.com -a bbb5dda0e15567979f0543407bdc2033d6f0bbb30f72512a981cfdb2f09e2747
           nak req -k 1 --limit 1 wss://relay.primal.net
+          nak event wss://relay.primal.net
       
       - name: Check for new versions
         env:
