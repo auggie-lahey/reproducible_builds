@@ -79,7 +79,7 @@ def test_relay_connectivity(relays: List[str]) -> bool:
                 text=True,
                 timeout=15
             )
-            
+            print(result)
             if result.returncode != 0:
                 print(f"    ✗ Connection failed (exit code {result.returncode})")
                 print(f"    STDERR: {result.stderr[:200]}")
