@@ -47,19 +47,10 @@ jobs:
         run: |
           go install -tags=debug github.com/fiatjaf/nak@latest > /dev/null 2>&1
           nak --version
-          nak req -k 1 --limit 1 wss://relay.primal.net
-          nak event wss://relay.primal.net
-          for relay in "wss://relay.damus.io" "wss://relay.zapstore.dev" "wss://nos.lol"; do
-            echo "Testing $relay"
-            timeout 5 curl -i -N \
-              -H "Connection: Upgrade" \
-              -H "Upgrade: websocket" \
-              -H "Sec-WebSocket-Version: 13" \
-              -H "Sec-WebSocket-Key: test" \
-              "$relay" 2>&1 | head -20 || echo "FAILED"
-            echo "---"
-          done
-      
+          RUST_LOG=debug nak req -k 1 --limit 1 wss://relay.primal.net
+          RUST_LOG=debug nak event wss://relay.primal.net
+        env:
+          RUST_BACKTRACE: 1
       - name: Check for new versions
         env:
           APP_ID: ${{ github.event.inputs.app }}
