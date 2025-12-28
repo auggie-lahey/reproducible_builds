@@ -44,10 +44,24 @@ def test_relay_connectivity(relays: List[str]) -> bool:
         bool: True if at least one relay connected successfully, False otherwise
     """
     import subprocess
+    import sys
     
     print(f"\n{'='*60}")
     print("TESTING RELAY CONNECTIVITY")
     print(f"{'='*60}")
+    
+    # Check if nak is available
+    try:
+        nak_check = subprocess.run(['nak', '--version'], 
+                                  capture_output=True, 
+                                  text=True, 
+                                  timeout=5)
+        print(f"Using nak version: {nak_check.stdout.strip()}")
+    except Exception as e:
+        print(f"✗ ERROR: nak command not found: {e}")
+        print("  Please ensure nak is installed and in PATH")
+        return False
+    
     print(f"Testing {len(relays)} relay(s)...\n")
     
     successful_connections = 0
@@ -58,6 +72,7 @@ def test_relay_connectivity(relays: List[str]) -> bool:
             
             # Test 1: Basic connection with a simple query
             cmd = ['nak', 'req', '-k', '32267', '--limit', '1', relay]
+            print(f"    Command: {' '.join(cmd)}")
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -66,7 +81,9 @@ def test_relay_connectivity(relays: List[str]) -> bool:
             )
             
             if result.returncode != 0:
-                print(f"    ✗ Connection failed: {result.stderr[:100]}")
+                print(f"    ✗ Connection failed (exit code {result.returncode})")
+                print(f"    STDERR: {result.stderr[:200]}")
+                print(f"    STDOUT: {result.stdout[:200]}")
                 continue
             
             # Test 2: Count all kind 32267 events
@@ -79,7 +96,8 @@ def test_relay_connectivity(relays: List[str]) -> bool:
             )
             
             if result_count.returncode != 0:
-                print(f"    ✗ Query failed: {result_count.stderr[:100]}")
+                print(f"    ✗ Query failed (exit code {result_count.returncode})")
+                print(f"    STDERR: {result_count.stderr[:200]}")
                 continue
             
             # Count events
@@ -100,9 +118,15 @@ def test_relay_connectivity(relays: List[str]) -> bool:
                 successful_connections += 1
                 
         except subprocess.TimeoutExpired:
-            print(f"    ✗ Timeout after 15s")
+            print(f"    ✗ Timeout after 15s - relay may be blocking GitHub Actions IPs")
+        except FileNotFoundError:
+            print(f"    ✗ ERROR: nak command not found")
+            print(f"    Ensure nak is installed and in PATH")
+            return False
         except Exception as e:
-            print(f"    ✗ Error: {str(e)[:100]}")
+            print(f"    ✗ Unexpected error: {str(e)[:200]}")
+            import traceback
+            print(f"    Traceback: {traceback.format_exc()[:200]}")
     
     print()
     
@@ -115,6 +139,7 @@ def test_relay_connectivity(relays: List[str]) -> bool:
         print("    - Firewall or network restrictions")
         print("    - Relays are down")
         print("  Consider using a self-hosted runner or VPN/proxy.")
+        print("\n  TIP: Run 'nak req -k 32267 wss://relay.zapstore.dev' locally to verify")
         return False
     
     print(f"✓ Successfully connected to {successful_connections}/{len(relays)} relay(s)")
