@@ -16,12 +16,14 @@ import requests
 from utils import (
     fetch_izzy_log,
     parse_versions,
-    detect_new_versions,
-    update_state,
     load_template,
     replace_template_vars,
     create_event_id,
-    format_timestamp
+    format_timestamp,
+    validate_zapstore_app,
+    fetch_app_definition_from_relay,
+    fetch_release_events_from_relay,
+    find_release_for_version
 )
 
 
@@ -29,24 +31,6 @@ def load_config(config_path: str = "config.yaml") -> Dict:
     """Load configuration from YAML file."""
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
-
-
-def load_state(state_file: str = "state.json") -> Dict:
-    """Load state from JSON file."""
-    try:
-        with open(state_file, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-    except json.JSONDecodeError:
-        # File exists but is empty or contains invalid JSON
-        return {}
-
-
-def save_state(state: Dict, state_file: str = "state.json"):
-    """Save state to JSON file."""
-    with open(state_file, 'w') as f:
-        json.dump(state, f, indent=2)
 
 
 def get_app_config(config: Dict, app_id: str) -> Optional[Dict]:
@@ -91,7 +75,7 @@ def publish_nostr_event(event: Dict, nsec: str, relays: List[str], dry_run: bool
         # Build nak event command
         # nak event --sec <nsec> --kind <kind> --content <content> --tag <tag>... <relay1> <relay2>...
         cmd = [
-            'nak', 'event',
+            'nak', 'event', '--quiet',
             '--sec', nsec,
             '--kind', str(event['kind']),
             '--content', event['content']
@@ -105,14 +89,14 @@ def publish_nostr_event(event: Dict, nsec: str, relays: List[str], dry_run: bool
         # Add relays as positional arguments at the end
         cmd.extend(relays)
         
-        print(f"Publishing command: {' '.join(cmd)}")
+        #print(f"Publishing command: {' '.join(cmd)}")
         
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         
         if result.returncode == 0:
             output = result.stdout.strip()
             print(f"✓ Event published successfully!")
-            print(f"  Output: {output}")
+            #print(f"  Output: {output}")
             # Extract event ID from output (nak usually prints it)
             return output
         else:
@@ -134,16 +118,14 @@ def publish_nostr_event(event: Dict, nsec: str, relays: List[str], dry_run: bool
 def check_app(
     app_id: str,
     config: Dict,
-    state: Dict,
     dry_run: bool = False
 ) -> List[Dict]:
     """
-    Check a single app for new versions and publish events.
+    Check a single app and publish events for the latest version.
     
     Args:
         app_id: App identifier
         config: Configuration dictionary
-        state: State dictionary
         dry_run: If True, don't actually publish
     
     Returns:
@@ -159,6 +141,25 @@ def check_app(
         print(f"✗ App {app_id} not found in configuration")
         return []
     
+    # Validate Zapstore app definition
+    zapstore_appid = app_config.get('zapstore_appid')
+    if not zapstore_appid:
+        print(f"✗ No zapstore_appid configured for {app_id}")
+        return []
+    
+    nostr_config = config.get('nostr', {})
+    relays = nostr_config.get('relays', [])
+    zapstore_pubkey = app_config.get('zapstore_pubkey')
+    
+    validation = validate_zapstore_app(zapstore_appid, relays, zapstore_pubkey)
+    
+    if not validation['valid']:
+        print(f"✗ Zapstore validation failed: {validation['error']}")
+        return []
+    
+    # Store the app definition event for later use
+    app_def_event = validation['event']
+    
     # Fetch log from Izzy
     print(f"Fetching log from IzzyOnDroid...")
     log_data = fetch_izzy_log(app_id)
@@ -171,17 +172,13 @@ def check_app(
     versions = parse_versions(log_data)
     print(f"  Found {len(versions)} versions")
     
-    # Detect new versions
-    new_versions = detect_new_versions(versions, state, app_id)
-    print(f"  New versions since last check: {len(new_versions)}")
-    
-    if not new_versions:
-        print("  No new versions to process")
+    if not versions:
+        print("  No versions found")
         return []
     
-    # Only process the latest version (highest version number)
-    latest_version = sorted(new_versions, reverse=True)[0]
-    print(f"  Latest new version: {latest_version}")
+    # Always process the latest version (highest version number)
+    latest_version = sorted(versions.keys(), reverse=True)[0]
+    print(f"  Latest version: {latest_version}")
     
     # Load templates
     assertion_template = load_template('templates/assertion.json')
@@ -198,6 +195,35 @@ def check_app(
         return []
     
     published_events = []
+    
+    # Fetch release events from the app definition we already have
+    release_event = None
+    release_coordinate = ""
+    release_event_id = ""
+    
+    if app_def_event:
+        print(f"\n  Fetching release events from app definition...")
+        release_events = fetch_release_events_from_relay(app_def_event, relays)
+        release_event = find_release_for_version(release_events, latest_version)
+        
+        if release_event:
+            # Build coordinate: <kind>:<pubkey>:<d-tag-value>
+            coord_kind = release_event.get('kind', 30818)
+            coord_pubkey = release_event.get('pubkey', '')
+            coord_d = latest_version  # or extract from tags
+            release_coordinate = f"{coord_kind}:{coord_pubkey}:{coord_d}"
+            release_event_id = release_event.get('id', '')
+            print(f"    ✓ Found release event for version {latest_version}")
+            print(f"      Coordinate: {release_coordinate}")
+            print(f"      Event ID: {release_event_id}")
+        else:
+            print(f"    ✗ No release event found for version {latest_version}")
+            print(f"    ✗ Cannot create assertion without linking to a release event")
+            print(f"    ✗ Please ensure Zapstore has published a release event for this app/version")
+            return []
+    else:
+        print(f"    ✗ No app definition found")
+        return []
     
     # Process only the latest version
     print(f"\n  Processing latest version {latest_version}...")
@@ -223,17 +249,26 @@ def check_app(
         'version': latest_version,
         'commit_or_tag': app_config.get('commit_template', '').format(version=latest_version),
         'sha256_hash': sha256_hash,
-        'reproducible_status': 'reproducible' if is_reproducible else 'not reproducible',
+        'reproducible_status': 'true' if is_reproducible else 'false',
         'architecture': app_config.get('arch', 'armeabi-v7a'),
         'timestamp': timestamp,
-        'izzy_log_file': app_config.get('izzy_log_file', f'{app_id}.json')
+        'izzy_log_file': app_config.get('izzy_log_file', f'{app_id}.json'),
+        'release_event_id': release_event_id if release_event_id else ''
     }
+    
+    # Only add release coordinate if we found one
+    if release_coordinate:
+        template_vars['release_event_coordinate'] = release_coordinate
     
     # Create assertion event
     print(f"    Creating assertion event...")
     assertion_event = replace_template_vars(assertion_template, **template_vars)
     assertion_event['created_at'] = timestamp
     assertion_event['pubkey'] = extract_pubkey_from_nsec(nsec)
+    
+    # Add 'a' tag if we have a release coordinate
+    if release_coordinate:
+        assertion_event['tags'].append(['a', release_coordinate])
     
     assertion_id = create_event_id(assertion_event)
     assertion_event['id'] = assertion_id
@@ -250,6 +285,9 @@ def check_app(
     print(f"    Creating attestation event...")
     attestation_vars = template_vars.copy()
     attestation_vars['assertion_event_id'] = assertion_id
+    attestation_vars['npub'] = extract_pubkey_from_nsec(nsec)
+    # Map reproducible_status to validity
+    attestation_vars['validity'] = 'valid' if is_reproducible else 'invalid'
     
     attestation_event = replace_template_vars(attestation_template, **attestation_vars)
     attestation_event['created_at'] = timestamp + 1  # Slightly later
@@ -265,9 +303,6 @@ def check_app(
         return []
     
     print(f"    ✓ Attestation event ID: {attestation_id}")
-    
-    # Update state
-    update_state(state, app_id, latest_version, assertion_id)
     
     published_events.append({
         'app_id': app_id,
@@ -321,11 +356,6 @@ def main():
         help='Path to configuration file'
     )
     parser.add_argument(
-        '--state',
-        default='state.json',
-        help='Path to state file'
-    )
-    parser.add_argument(
         '--dry-run',
         action='store_true',
         help='Echo events without publishing'
@@ -339,9 +369,6 @@ def main():
     except Exception as e:
         print(f"Error loading config: {e}")
         sys.exit(1)
-    
-    # Load state
-    state = load_state(args.state)
     
     # Determine which apps to check
     if args.app:
@@ -359,17 +386,12 @@ def main():
     all_events = []
     for app_id in apps_to_check:
         try:
-            events = check_app(app_id, config, state, args.dry_run)
+            events = check_app(app_id, config, args.dry_run)
             all_events.extend(events)
         except Exception as e:
             print(f"Error checking {app_id}: {e}")
             import traceback
             traceback.print_exc()
-    
-    # Save updated state
-    if not args.dry_run:
-        save_state(state, args.state)
-        print(f"\nState saved to {args.state}")
     
     # Summary
     print(f"\n{'='*60}")
