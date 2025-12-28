@@ -55,7 +55,7 @@ jobs:
           event: ${{ steps.publish.outputs.event }}
       - name: Install nak (Nostr CLI)
         run: |
-          go install -tags=debug github.com/fiatjaf/nak@v0.17.2 # > /dev/null 2>&1
+          go install -tags=debug github.com/fiatjaf/nak@v0.17.1 # > /dev/null 2>&1
           nak --version
           RUST_LOG=debug nak req -k 1 --limit 1 wss://relay.primal.net -v
           RUST_LOG=debug nak event wss://relay.primal.net -v
