@@ -2,13 +2,14 @@
 
 # Nostr configuration
 nostr:
-  # Generate with: nak key gen
-  # This will be added after generating the key
-  nsec: ""  # TODO: Generate with nak
+  # Generated with: nak key generate
+  # Public key (npub): npub14dfhr2vvv5nkwqva92t8yxexjn82w4g2fnpsme43fdff4fg3j29qhgxrz5
+  nsec: "nsec1k792zawwt097fwgu3fw2vzqj87hp9q8rvrfzlrl6c9s29gt04d6qlltljr"
   relays:
     - "wss://relay.damus.io"
     - "wss://relay.primal.net"
     - "wss://nos.lol"
+    - "wss://relay.zapstore.dev"
 
 # App mappings: Zapstore -> IzzyOnDroid
 # Each entry maps an app ID in both systems
