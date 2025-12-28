@@ -1,0 +1,109 @@
+name: Reproducible Build Checker
+
+on:
+  # Run daily at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Specific app ID to check (optional, checks all if empty)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Dry run (echo events without publishing)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  check-reproducible-builds:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Install nak (Nostr CLI)
+        run: |
+          # Install nak from GitHub releases
+          NAK_VERSION="0.3.0"
+          curl -LO "https://github.com/0xtrm/nak/releases/download/v${NAK_VERSION}/nak_${NAK_VERSION}_linux_amd64.tar.gz"
+          tar xzf "nak_${NAK_VERSION}_linux_amd64.tar.gz"
+          chmod +x nak
+          sudo mv nak /usr/local/bin/
+          nak --version
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Create config from secrets
+        run: |
+          # Copy template config
+          cp config.yaml config.yaml.local
+          
+          # Replace nsec placeholder with actual secret
+          if [ -n "${{ secrets.NSEC }}" ]; then
+            sed -i "s|nsec: \"\"|nsec: \"${{ secrets.NSEC }}\"|" config.yaml.local
+          else
+            echo "Warning: NSEC secret not set"
+            echo "You can generate one with: nak key gen"
+          fi
+      
+      - name: Check for new versions
+        env:
+          APP_ID: ${{ github.event.inputs.app }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          # Build command args
+          ARGS=""
+          
+          if [ -n "$APP_ID" ]; then
+            ARGS="$ARGS --app $APP_ID"
+          fi
+          
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          
+          # Run the checker
+          python scripts/check_reproducible.py $ARGS
+      
+      - name: Commit state changes
+        run: |
+          if [ -f "state.json" ]; then
+            # Check if there are changes
+            if git diff --quiet state.json; then
+              echo "No state changes to commit"
+            else
+              git add state.json
+              git commit -m "Update state after reproducible build check"
+              git push
+            fi
+          fi
+      
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-logs
+          path: |
+            state.json
+          retention-days: 30
