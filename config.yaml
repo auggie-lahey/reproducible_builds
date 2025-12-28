@@ -1,0 +1,51 @@
+# Configuration for Reproducible Build Attestation System
+
+# Nostr configuration
+nostr:
+  # Generate with: nak key gen
+  # This will be added after generating the key
+  nsec: ""  # TODO: Generate with nak
+  relays:
+    - "wss://relay.damus.io"
+    - "wss://relay.primal.net"
+    - "wss://nos.lol"
+
+# App mappings: Zapstore -> IzzyOnDroid
+# Each entry maps an app ID in both systems
+apps:
+  org.fossify.calendar:
+    izzy_appid: "org.fossify.calendar"
+    zapstore_appid: "calendar"
+    # Izzy's log file name (usually same as appid)
+    izzy_log_file: "org.fossify.calendar.json"
+    # Architecture (default for most Android apps)
+    arch: "armeabi-v7a"
+    # Commit/tag to use (can be version tag or commit hash)
+    commit_template: "v{version}"
+
+# GitHub/Codeberg API configuration
+github:
+  # IzzyOnDroid repo for reproducible build logs
+  rbtlog_repo: "IzzyOnDroid/rbtlog"
+  base_url: "https://codeberg.org/api/v1/repos"
+  # Branch to fetch logs from
+  branch: "master"
+  # Log files directory
+  logs_path: "logs"
+
+# State tracking
+state:
+  # File to store last checked versions
+  state_file: "state.json"
+  # How often to check (in hours)
+  check_interval: 24
+
+# GitHub Actions configuration
+actions:
+  # Schedule in cron format (UTC)
+  # Default: daily at 2 AM UTC
+  schedule: "0 2 * * *"
+  # Enable manual workflow dispatch
+  manual_trigger: true
+  # Echo events before publishing (for review)
+  echo_before_publish: true

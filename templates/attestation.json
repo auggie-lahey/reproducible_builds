@@ -1,0 +1,10 @@
+{
+  "kind": 1063,
+  "tags": [
+    ["d", "{{APP_ID}}"],
+    ["attestation", "{{ASSERTION_EVENT_ID}}"],
+    ["version", "{{VERSION}}"],
+    ["published_at", "{{TIMESTAMP}}"]
+  ],
+  "content": "I attest that the reproducibility assertion for {{APP_ID}} version {{VERSION}} is true.\n\nAssertion event ID: {{ASSERTION_EVENT_ID}}\n\nThis attestation confirms that the reproducibility status has been verified against IzzyOnDroid's reproducible build logs."
+}
