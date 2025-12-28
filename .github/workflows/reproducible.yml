@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v6
         with:
-          go-version: 1.25
+          go-version: 1.24
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -55,7 +55,7 @@ jobs:
           event: ${{ steps.publish.outputs.event }}
       - name: Install nak (Nostr CLI)
         run: |
-          go install -tags=debug github.com/fiatjaf/nak@latest > /dev/null 2>&1
+          go install -tags=debug github.com/fiatjaf/nak@v0.17.2 > /dev/null 2>&1
           nak --version
           RUST_LOG=debug nak req -k 1 --limit 1 wss://relay.primal.net -v
           RUST_LOG=debug nak event wss://relay.primal.net -v
