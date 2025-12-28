@@ -34,11 +34,14 @@ def load_config(config_path: str = "config.yaml") -> Dict:
         return yaml.safe_load(f)
 
 
-def test_relay_connectivity(relays: List[str]) -> None:
+def test_relay_connectivity(relays: List[str]) -> bool:
     """
     Test connectivity to all configured relays and fetch app definition count.
     
     This helps diagnose network issues in CI environments.
+    
+    Returns:
+        bool: True if at least one relay connected successfully, False otherwise
     """
     import subprocess
     
@@ -46,6 +49,8 @@ def test_relay_connectivity(relays: List[str]) -> None:
     print("TESTING RELAY CONNECTIVITY")
     print(f"{'='*60}")
     print(f"Testing {len(relays)} relay(s)...\n")
+    
+    successful_connections = 0
     
     for relay in relays:
         try:
@@ -89,8 +94,10 @@ def test_relay_connectivity(relays: List[str]) -> None:
             
             if event_count > 0:
                 print(f"    ✓ Connected - Found {event_count} app definition(s)")
+                successful_connections += 1
             else:
                 print(f"    ✓ Connected - No app definitions found")
+                successful_connections += 1
                 
         except subprocess.TimeoutExpired:
             print(f"    ✗ Timeout after 15s")
@@ -98,6 +105,20 @@ def test_relay_connectivity(relays: List[str]) -> None:
             print(f"    ✗ Error: {str(e)[:100]}")
     
     print()
+    
+    # Fail if no relays could be reached
+    if successful_connections == 0:
+        print("✗ CRITICAL: No relays could be reached!")
+        print("  This appears to be a network connectivity issue.")
+        print("  Possible causes:")
+        print("    - GitHub Actions IPs are being blocked by relays")
+        print("    - Firewall or network restrictions")
+        print("    - Relays are down")
+        print("  Consider using a self-hosted runner or VPN/proxy.")
+        return False
+    
+    print(f"✓ Successfully connected to {successful_connections}/{len(relays)} relay(s)")
+    return True
 
 
 def get_app_config(config: Dict, app_id: str) -> Optional[Dict]:
@@ -454,7 +475,10 @@ def main():
     nostr_config = config.get('nostr', {})
     relays = nostr_config.get('relays', [])
     if relays:
-        test_relay_connectivity(relays)
+        connectivity_ok = test_relay_connectivity(relays)
+        if not connectivity_ok:
+            print("\n✗ Cannot proceed without relay connectivity")
+            sys.exit(1)
     
     # Determine which apps to check
     if args.app:
@@ -470,14 +494,25 @@ def main():
     
     # Check each app
     all_events = []
+    failed_apps = []
     for app_id in apps_to_check:
         try:
             events = check_app(app_id, config, args.dry_run)
-            all_events.extend(events)
+            if not events:
+                # check_app returned empty list, which means it failed
+                failed_apps.append(app_id)
+            else:
+                all_events.extend(events)
         except Exception as e:
             print(f"Error checking {app_id}: {e}")
             import traceback
             traceback.print_exc()
+            failed_apps.append(app_id)
+    
+    # Fail if any apps failed to process
+    if failed_apps:
+        print(f"\n✗ Failed to process {len(failed_apps)} app(s): {', '.join(failed_apps)}")
+        sys.exit(1)
     
     # Summary
     print(f"\n{'='*60}")
