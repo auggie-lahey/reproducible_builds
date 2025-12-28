@@ -69,5 +69,5 @@ jobs:
           fi
           
           # Run the checker
-          nak req -k 1 --limit 1 wss://relay.primal.net
+          # nak req -k 1 --limit 1 wss://relay.primal.net
           python scripts/check_reproducible.py $ARGS
