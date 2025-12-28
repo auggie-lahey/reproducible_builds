@@ -2,6 +2,7 @@
   "kind": 1063,
   "tags": [
     ["d", "{{APP_ID}}"],
+    ["e", "{{RELEASE_EVENT_ID}}"],
     ["version", "{{VERSION}}"],
     ["commit", "{{COMMIT_OR_TAG}}"],
     ["sha256", "{{SHA256_HASH}}"],

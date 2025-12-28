@@ -16,7 +16,10 @@ nostr:
 apps:
   org.fossify.calendar:
     izzy_appid: "org.fossify.calendar"
-    zapstore_appid: "calendar"
+    zapstore_appid: "org.fossify.calendar"
+    # Optional: Specify pubkey to validate against specific app definition
+    # If multiple app definitions exist with the same d tag, this will be used
+    # zapstore_pubkey: "78ce6faa72264387284e647ba6938995735ec8c7d5c5a65737e55130f026307d"
     # Izzy's log file name (usually same as appid)
     izzy_log_file: "org.fossify.calendar.json"
     # Architecture (default for most Android apps)

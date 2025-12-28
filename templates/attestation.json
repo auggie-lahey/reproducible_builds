@@ -1,10 +1,10 @@
 {
-  "kind": 1063,
+  "kind": 31871,
   "tags": [
-    ["d", "{{APP_ID}}"],
-    ["attestation", "{{ASSERTION_EVENT_ID}}"],
-    ["version", "{{VERSION}}"],
-    ["published_at", "{{TIMESTAMP}}"]
+    ["d", "{{NPUB}}:reproducible-{{APP_ID}}-{{VERSION}}"],
+    ["e", "{{ASSERTION_EVENT_ID}}", "", "reproducibility-assertion"],
+    ["s", "verified"],
+    ["v", "{{VALIDITY}}"]
   ],
-  "content": "I attest that the reproducibility assertion for {{APP_ID}} version {{VERSION}} is true.\n\nAssertion event ID: {{ASSERTION_EVENT_ID}}\n\nThis attestation confirms that the reproducibility status has been verified against IzzyOnDroid's reproducible build logs."
+  "content": "Reproducibility verification for {{APP_ID}} version {{VERSION}}: {{VALIDITY}}\n\nBased on IzzyOnDroid reproducible build logs."
 }
