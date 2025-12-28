@@ -47,9 +47,18 @@ jobs:
         run: |
           go install -tags=debug github.com/fiatjaf/nak@latest > /dev/null 2>&1
           nak --version
-          #nak req -k 30617 -k 30618 pyramid.treegaze.com gitnostr.com -a bbb5dda0e15567979f0543407bdc2033d6f0bbb30f72512a981cfdb2f09e2747
           nak req -k 1 --limit 1 wss://relay.primal.net
           nak event wss://relay.primal.net
+          for relay in "wss://relay.damus.io" "wss://relay.zapstore.dev" "wss://nos.lol"; do
+            echo "Testing $relay"
+            timeout 5 curl -i -N \
+              -H "Connection: Upgrade" \
+              -H "Upgrade: websocket" \
+              -H "Sec-WebSocket-Version: 13" \
+              -H "Sec-WebSocket-Key: test" \
+              "$relay" 2>&1 | head -20 || echo "FAILED"
+            echo "---"
+          done
       
       - name: Check for new versions
         env:
