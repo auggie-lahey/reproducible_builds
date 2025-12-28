@@ -1,0 +1,73 @@
+name: Debug Relay Connectivity
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  test-relay:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install nak
+        run: |
+          NAK_VERSION="0.17.3"
+          curl -LO "https://github.com/fiatjaf/nak/releases/download/v${NAK_VERSION}/nak-v${NAK_VERSION}-linux-amd64"
+          chmod +x "nak-v${NAK_VERSION}-linux-amd64"
+          sudo mv "nak-v${NAK_VERSION}-linux-amd64" /usr/local/bin/nak
+          nak --version
+      
+      - name: Test 1: Simple relay connection
+        run: |
+          echo "=== Test 1: Basic connection ==="
+          timeout 10s nak req -k 32267 --limit 1 wss://relay.zapstore.dev || echo "Command failed or timed out"
+      
+      - name: Test 2: Check output directly
+        run: |
+          echo "=== Test 2: Capture to file ==="
+          timeout 10s nak req -k 32267 --limit 1 wss://relay.zapstore.dev > relay_output.txt 2>&1 || true
+          echo "File size: $(wc -c < relay_output.txt) bytes"
+          echo "Line count: $(wc -l < relay_output.txt) lines"
+          echo "=== File content ==="
+          cat relay_output.txt
+          echo "=== End of file ==="
+      
+      - name: Test 3: Test with curl/wscat
+        run: |
+          echo "=== Test 3: Test WebSocket connectivity ==="
+          
+          # Check if we can reach the relay at all
+          curl -I -s --connect-timeout 5 https://relay.zapstore.dev || echo "HTTP check failed"
+          
+          # Try wscat if available
+          if command -v wscat &> /dev/null; then
+            echo "wscat is available"
+            timeout 5s wscat -c wss://relay.zapstore.dev <<< '["REQ","sub",{"kinds":[32267],"limit":1}]' || echo "wscat test done"
+          else
+            echo "wscat not available, installing..."
+            sudo npm install -g wscat
+            timeout 5s wscat -c wss://relay.zapstore.dev <<< '["REQ","sub",{"kinds":[32267],"limit":1}]' || echo "wscat test done"
+          fi
+      
+      - name: Test 4: Check network environment
+        run: |
+          echo "=== Test 4: Network diagnostics ==="
+          echo "IP address:"
+          curl -s https://api.ipify.org || echo "Could not get IP"
+          echo ""
+          echo "DNS lookup:"
+          nslookup relay.zapstore.dev || echo "DNS lookup failed"
+          echo ""
+          echo "Port connectivity:"
+          timeout 5s nc -zv relay.zapstore.dev 443 || echo "Port check failed"
+      
+      - name: Test 5: Try different relay
+        run: |
+          echo "=== Test 5: Test nos.lol relay ==="
+          timeout 10s nak req -k 32267 --limit 1 wss://nos.lol > noslol_output.txt 2>&1 || true
+          echo "nos.lol output size: $(wc -c < noslol_output.txt) bytes"
+          echo "nos.lol output:"
+          cat noslol_output.txt
