@@ -88,24 +88,22 @@ def publish_nostr_event(event: Dict, nsec: str, relays: List[str], dry_run: bool
             print("DRY RUN: Event would be published (not actually publishing)")
             return create_event_id(event)
         
-        # Use nak to publish
-        relay_args = []
-        for relay in relays:
-            relay_args.extend(['--relay', relay])
-        
+        # Build nak event command
+        # nak event --sec <nsec> --kind <kind> --content <content> --tag <tag>... <relay1> <relay2>...
         cmd = [
-            'nak', 'event', 'publish',
-            nsec,
+            'nak', 'event',
+            '--sec', nsec,
             '--kind', str(event['kind']),
             '--content', event['content']
         ]
         
-        # Add tags
+        # Add tags (use -t flag for tags)
         for tag in event.get('tags', []):
             if len(tag) >= 2:
                 cmd.extend(['--tag', f"{tag[0]}={tag[1]}"])
         
-        cmd.extend(relay_args)
+        # Add relays as positional arguments at the end
+        cmd.extend(relays)
         
         print(f"Publishing command: {' '.join(cmd)}")
         
@@ -181,6 +179,10 @@ def check_app(
         print("  No new versions to process")
         return []
     
+    # Only process the latest version (highest version number)
+    latest_version = sorted(new_versions, reverse=True)[0]
+    print(f"  Latest new version: {latest_version}")
+    
     # Load templates
     assertion_template = load_template('templates/assertion.json')
     attestation_template = load_template('templates/attestation.json')
@@ -197,84 +199,83 @@ def check_app(
     
     published_events = []
     
-    # Process each new version
-    for version in sorted(new_versions):
-        print(f"\n  Processing version {version}...")
-        
-        # Get SHA256 hash for this version
-        sha256_hashes = versions.get(version, [])
-        if not sha256_hashes:
-            print(f"    ✗ No SHA256 hash found for version {version}")
-            continue
-        
-        sha256_hash = sha256_hashes[0]  # Use first hash
-        
-        # Determine reproducibility status
-        # For now, if there's a hash in Izzy's log, it's reproducible
-        is_reproducible = True
-        
-        # Prepare template variables
-        import time
-        timestamp = int(time.time())
-        
-        template_vars = {
-            'app_id': app_id,
-            'version': version,
-            'commit_or_tag': app_config.get('commit_template', '').format(version=version),
-            'sha256_hash': sha256_hash,
-            'reproducible_status': 'reproducible' if is_reproducible else 'not reproducible',
-            'architecture': app_config.get('arch', 'armeabi-v7a'),
-            'timestamp': timestamp,
-            'izzy_log_file': app_config.get('izzy_log_file', f'{app_id}.json')
-        }
-        
-        # Create assertion event
-        print(f"    Creating assertion event...")
-        assertion_event = replace_template_vars(assertion_template, **template_vars)
-        assertion_event['created_at'] = timestamp
-        assertion_event['pubkey'] = extract_pubkey_from_nsec(nsec)
-        
-        assertion_id = create_event_id(assertion_event)
-        assertion_event['id'] = assertion_id
-        
-        # Publish assertion
-        assertion_result = publish_nostr_event(assertion_event, nsec, relays, dry_run)
-        if not assertion_result and not dry_run:
-            print(f"    ✗ Failed to publish assertion for {version}")
-            continue
-        
-        print(f"    ✓ Assertion event ID: {assertion_id}")
-        
-        # Create attestation event
-        print(f"    Creating attestation event...")
-        attestation_vars = template_vars.copy()
-        attestation_vars['assertion_event_id'] = assertion_id
-        
-        attestation_event = replace_template_vars(attestation_template, **attestation_vars)
-        attestation_event['created_at'] = timestamp + 1  # Slightly later
-        attestation_event['pubkey'] = extract_pubkey_from_nsec(nsec)
-        
-        attestation_id = create_event_id(attestation_event)
-        attestation_event['id'] = attestation_id
-        
-        # Publish attestation
-        attestation_result = publish_nostr_event(attestation_event, nsec, relays, dry_run)
-        if not attestation_result and not dry_run:
-            print(f"    ✗ Failed to publish attestation for {version}")
-            continue
-        
-        print(f"    ✓ Attestation event ID: {attestation_id}")
-        
-        # Update state
-        update_state(state, app_id, version, assertion_id)
-        
-        published_events.append({
-            'app_id': app_id,
-            'version': version,
-            'assertion_id': assertion_id,
-            'attestation_id': attestation_id,
-            'reproducible': is_reproducible
-        })
+    # Process only the latest version
+    print(f"\n  Processing latest version {latest_version}...")
+    
+    # Get SHA256 hash for this version
+    sha256_hashes = versions.get(latest_version, [])
+    if not sha256_hashes:
+        print(f"    ✗ No SHA256 hash found for version {latest_version}")
+        return []
+    
+    sha256_hash = sha256_hashes[0]  # Use first hash
+    
+    # Determine reproducibility status
+    # For now, if there's a hash in Izzy's log, it's reproducible
+    is_reproducible = True
+    
+    # Prepare template variables
+    import time
+    timestamp = int(time.time())
+    
+    template_vars = {
+        'app_id': app_id,
+        'version': latest_version,
+        'commit_or_tag': app_config.get('commit_template', '').format(version=latest_version),
+        'sha256_hash': sha256_hash,
+        'reproducible_status': 'reproducible' if is_reproducible else 'not reproducible',
+        'architecture': app_config.get('arch', 'armeabi-v7a'),
+        'timestamp': timestamp,
+        'izzy_log_file': app_config.get('izzy_log_file', f'{app_id}.json')
+    }
+    
+    # Create assertion event
+    print(f"    Creating assertion event...")
+    assertion_event = replace_template_vars(assertion_template, **template_vars)
+    assertion_event['created_at'] = timestamp
+    assertion_event['pubkey'] = extract_pubkey_from_nsec(nsec)
+    
+    assertion_id = create_event_id(assertion_event)
+    assertion_event['id'] = assertion_id
+    
+    # Publish assertion
+    assertion_result = publish_nostr_event(assertion_event, nsec, relays, dry_run)
+    if not assertion_result and not dry_run:
+        print(f"    ✗ Failed to publish assertion for {latest_version}")
+        return []
+    
+    print(f"    ✓ Assertion event ID: {assertion_id}")
+    
+    # Create attestation event
+    print(f"    Creating attestation event...")
+    attestation_vars = template_vars.copy()
+    attestation_vars['assertion_event_id'] = assertion_id
+    
+    attestation_event = replace_template_vars(attestation_template, **attestation_vars)
+    attestation_event['created_at'] = timestamp + 1  # Slightly later
+    attestation_event['pubkey'] = extract_pubkey_from_nsec(nsec)
+    
+    attestation_id = create_event_id(attestation_event)
+    attestation_event['id'] = attestation_id
+    
+    # Publish attestation
+    attestation_result = publish_nostr_event(attestation_event, nsec, relays, dry_run)
+    if not attestation_result and not dry_run:
+        print(f"    ✗ Failed to publish attestation for {latest_version}")
+        return []
+    
+    print(f"    ✓ Attestation event ID: {attestation_id}")
+    
+    # Update state
+    update_state(state, app_id, latest_version, assertion_id)
+    
+    published_events.append({
+        'app_id': app_id,
+        'version': latest_version,
+        'assertion_id': assertion_id,
+        'attestation_id': attestation_id,
+        'reproducible': is_reproducible
+    })
     
     return published_events
 

@@ -165,10 +165,16 @@ def replace_template_vars(template: Dict, **kwargs) -> Dict:
     if 'content' in result:
         content = result['content']
         for key, value in kwargs.items():
-            placeholder = f"{{{{ {key} }}}}"
-            template_var = f"{{{{ {key.upper()} }}}}"
-            content = content.replace(placeholder, str(value))
-            content = content.replace(template_var, str(value))
+            # Try both formats: {{KEY}} and {{ key }}
+            template_var_upper = f"{{{{{key.upper()}}}}}"
+            template_var_lower = f"{{{{{key}}}}}"
+            template_var_upper_space = f"{{{{ {key.upper()} }}}}"
+            template_var_lower_space = f"{{{{ {key} }}}}"
+            
+            content = content.replace(template_var_upper, str(value))
+            content = content.replace(template_var_lower, str(value))
+            content = content.replace(template_var_upper_space, str(value))
+            content = content.replace(template_var_lower_space, str(value))
         result['content'] = content
     
     # Replace in tags
@@ -180,10 +186,16 @@ def replace_template_vars(template: Dict, **kwargs) -> Dict:
                 # Try to replace any template variables
                 replaced_item = item
                 for key, value in kwargs.items():
-                    placeholder = f"{{{{ {key} }}}}"
-                    template_var = f"{{{{ {key.upper()} }}}}"
-                    replaced_item = replaced_item.replace(placeholder, str(value))
-                    replaced_item = replaced_item.replace(template_var, str(value))
+                    # Try both formats: {{KEY}} and {{ key }}
+                    template_var_upper = f"{{{{{key.upper()}}}}}"
+                    template_var_lower = f"{{{{{key}}}}}"
+                    template_var_upper_space = f"{{{{ {key.upper()} }}}}"
+                    template_var_lower_space = f"{{{{ {key} }}}}"
+                    
+                    replaced_item = replaced_item.replace(template_var_upper, str(value))
+                    replaced_item = replaced_item.replace(template_var_lower, str(value))
+                    replaced_item = replaced_item.replace(template_var_upper_space, str(value))
+                    replaced_item = replaced_item.replace(template_var_lower_space, str(value))
                 new_tag.append(replaced_item)
             new_tags.append(new_tag)
         result['tags'] = new_tags
