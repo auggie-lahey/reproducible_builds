@@ -49,6 +49,8 @@ jobs:
           # sudo mv "nak-v${NAK_VERSION}-linux-amd64" /usr/local/bin/nak
           go install -tags=debug github.com/fiatjaf/nak@latest
           ls -lah
+          echo $GOPATH
+          ls $GOPATH
           nak req -k 30617 -k 30618 pyramid.treegaze.com gitnostr.com -a bbb5dda0e15567979f0543407bdc2033d6f0bbb30f72512a981cfdb2f09e2747
           nak --version
       
