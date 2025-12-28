@@ -79,7 +79,7 @@ def test_relay_connectivity(relays: List[str]) -> bool:
                 text=True,
                 timeout=15
             )
-            print(result)
+            
             if result.returncode != 0:
                 print(f"    ✗ Connection failed (exit code {result.returncode})")
                 print(f"    STDERR: {result.stderr[:200]}")
@@ -88,6 +88,7 @@ def test_relay_connectivity(relays: List[str]) -> bool:
             
             # Test 2: Count all kind 32267 events
             cmd_count = ['nak', 'req', '-k', '32267', relay]
+            print(f"    Counting events: {' '.join(cmd_count)}")
             result_count = subprocess.run(
                 cmd_count,
                 capture_output=True,
@@ -114,7 +115,7 @@ def test_relay_connectivity(relays: List[str]) -> bool:
                 print(f"    ✓ Connected - Found {event_count} app definition(s)")
                 successful_connections += 1
             else:
-                print(f"    ✓ Connected - No app definitions found")
+                print(f"    ✓ Connected - No app definitions found (stdout: {len(result_count.stdout)} bytes)")
                 successful_connections += 1
                 
         except subprocess.TimeoutExpired:
