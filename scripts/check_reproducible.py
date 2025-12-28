@@ -34,6 +34,72 @@ def load_config(config_path: str = "config.yaml") -> Dict:
         return yaml.safe_load(f)
 
 
+def test_relay_connectivity(relays: List[str]) -> None:
+    """
+    Test connectivity to all configured relays and fetch app definition count.
+    
+    This helps diagnose network issues in CI environments.
+    """
+    import subprocess
+    
+    print(f"\n{'='*60}")
+    print("TESTING RELAY CONNECTIVITY")
+    print(f"{'='*60}")
+    print(f"Testing {len(relays)} relay(s)...\n")
+    
+    for relay in relays:
+        try:
+            print(f"  Testing {relay}...")
+            
+            # Test 1: Basic connection with a simple query
+            cmd = ['nak', 'req', '-k', '32267', '--limit', '1', relay]
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=15
+            )
+            
+            if result.returncode != 0:
+                print(f"    ✗ Connection failed: {result.stderr[:100]}")
+                continue
+            
+            # Test 2: Count all kind 32267 events
+            cmd_count = ['nak', 'req', '-k', '32267', relay]
+            result_count = subprocess.run(
+                cmd_count,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result_count.returncode != 0:
+                print(f"    ✗ Query failed: {result_count.stderr[:100]}")
+                continue
+            
+            # Count events
+            event_count = 0
+            for line in result_count.stdout.strip().split('\n'):
+                if line.strip():
+                    try:
+                        json.loads(line)
+                        event_count += 1
+                    except json.JSONDecodeError:
+                        pass
+            
+            if event_count > 0:
+                print(f"    ✓ Connected - Found {event_count} app definition(s)")
+            else:
+                print(f"    ✓ Connected - No app definitions found")
+                
+        except subprocess.TimeoutExpired:
+            print(f"    ✗ Timeout after 15s")
+        except Exception as e:
+            print(f"    ✗ Error: {str(e)[:100]}")
+    
+    print()
+
+
 def get_app_config(config: Dict, app_id: str) -> Optional[Dict]:
     """Get app configuration from config."""
     apps = config.get('apps', {})
@@ -383,6 +449,12 @@ def main():
     except Exception as e:
         print(f"Error loading config: {e}")
         sys.exit(1)
+    
+    # Test relay connectivity before starting
+    nostr_config = config.get('nostr', {})
+    relays = nostr_config.get('relays', [])
+    if relays:
+        test_relay_connectivity(relays)
     
     # Determine which apps to check
     if args.app:
