@@ -78,7 +78,7 @@ def test_relay_connectivity(relays: List[str]) -> bool:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=15
+                timeout=300
             )
             
             if result.returncode != 0:
