@@ -5,6 +5,7 @@ Main script to check reproducible builds and publish Nostr events.
 
 import argparse
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -362,6 +363,19 @@ def main():
     )
     
     args = parser.parse_args()
+    
+    # Verify nak is installed
+    try:
+        result = subprocess.run(['nak', '--version'], capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            print("Error: nak CLI is not installed or not working")
+            print("Install it from: https://github.com/fiatjaf/nak/releases")
+            sys.exit(1)
+        print(f"Using nak version: {result.stdout.strip()}")
+    except Exception as e:
+        print(f"Error checking nak installation: {e}")
+        print("Please install nak from: https://github.com/fiatjaf/nak/releases")
+        sys.exit(1)
     
     # Load configuration
     try:
