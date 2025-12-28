@@ -65,6 +65,7 @@ def test_relay_connectivity(relays: List[str]) -> bool:
     print(f"Testing {len(relays)} relay(s)...\n")
     
     successful_connections = 0
+    relays_with_events = 0
     
     for relay in relays:
         try:
@@ -111,12 +112,14 @@ def test_relay_connectivity(relays: List[str]) -> bool:
                     except json.JSONDecodeError:
                         pass
             
+            # Always increment successful_connections (network worked)
+            successful_connections += 1
+            
             if event_count > 0:
                 print(f"    ✓ Connected - Found {event_count} app definition(s)")
-                successful_connections += 1
+                relays_with_events += 1
             else:
                 print(f"    ✓ Connected - No app definitions found (stdout: {len(result_count.stdout)} bytes)")
-                successful_connections += 1
                 
         except subprocess.TimeoutExpired:
             print(f"    ✗ Timeout after 15s - relay may be blocking GitHub Actions IPs")
@@ -131,20 +134,22 @@ def test_relay_connectivity(relays: List[str]) -> bool:
     
     print()
     
-    # Fail if no relays could be reached
-    if successful_connections == 0:
-        print("✗ CRITICAL: No relays could be reached!")
-        print("  This appears to be a network connectivity issue.")
-        print("  Possible causes:")
-        print("    - GitHub Actions IPs are being blocked by relays")
-        print("    - Firewall or network restrictions")
-        print("    - Relays are down")
-        print("  Consider using a self-hosted runner or VPN/proxy.")
-        print("\n  TIP: Run 'nak req -k 32267 wss://relay.zapstore.dev' locally to verify")
-        return False
-    
+    # Report results
     print(f"✓ Successfully connected to {successful_connections}/{len(relays)} relay(s)")
-    return True
+    if relays_with_events > 0:
+        print(f"✓ Found app definitions on {relays_with_events}/{len(relays)} relay(s)")
+        return True
+    else:
+        print("\n✗ CRITICAL: No app definitions found on any relay!")
+        print("  All relays connected successfully but returned no kind 32267 events.")
+        print("  This indicates:")
+        print("    - GitHub Actions IPs may be receiving empty responses from relays")
+        print("    - The relays may not have any app definitions yet")
+        print("    - There may be a network or filtering issue in the CI environment")
+        print("\n  Local vs CI difference detected!")
+        print("  TIP: Run locally: 'nak req -k 32267 wss://relay.zapstore.dev | wc -l'")
+        print("  If local returns events but CI doesn't, this is a CI-specific issue.")
+        return False
 
 
 def get_app_config(config: Dict, app_id: str) -> Optional[Dict]:
