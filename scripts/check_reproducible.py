@@ -119,7 +119,12 @@ def test_relay_connectivity(relays: List[str]) -> bool:
                 print(f"    ✓ Connected - Found {event_count} app definition(s)")
                 relays_with_events += 1
             else:
-                print(f"    ✓ Connected - No app definitions found (stdout: {len(result_count.stdout)} bytes)")
+                print(f"    ✓ Connected - No app definitions found")
+                print(f"      stdout: {len(result_count.stdout)} bytes")
+                print(f"      stderr: {len(result_count.stderr)} bytes ({repr(result_count.stderr[:100])})")
+                # Log first/last chars of stdout for debugging
+                if result_count.stdout:
+                    print(f"      stdout preview: {result_count.stdout[:100]}...{result_count.stdout[-100:]}")
                 
         except subprocess.TimeoutExpired:
             print(f"    ✗ Timeout after 15s - relay may be blocking GitHub Actions IPs")
