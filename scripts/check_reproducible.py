@@ -512,7 +512,7 @@ def main():
     relays = nostr_config.get('relays', [])
     if relays:
         #connectivity_ok = test_relay_connectivity(relays)
-        connectivity_ok = true
+        connectivity_ok = True
         if not connectivity_ok:
             print("\n✗ Cannot proceed without relay connectivity")
             sys.exit(1)
