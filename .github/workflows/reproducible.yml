@@ -2,6 +2,7 @@ name: Reproducible Build Checker
 
 on:
   # Run daily at 2 AM UTC
+  push:
   schedule:
     - cron: '0 2 * * *'
   
