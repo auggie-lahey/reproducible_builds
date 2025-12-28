@@ -54,19 +54,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
       
-      - name: Create config from secrets
-        run: |
-          # Copy template config
-          cp config.yaml config.yaml.local
-          
-          # Replace nsec placeholder with actual secret
-          if [ -n "${{ secrets.NSEC }}" ]; then
-            sed -i "s|nsec: \"\"|nsec: \"${{ secrets.NSEC }}\"|" config.yaml.local
-          else
-            echo "Warning: NSEC secret not set"
-            echo "You can generate one with: nak key gen"
-          fi
-      
       - name: Check for new versions
         env:
           APP_ID: ${{ github.event.inputs.app }}
