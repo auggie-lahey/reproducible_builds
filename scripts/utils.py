@@ -434,8 +434,11 @@ def fetch_zapstore_app_def(
     
     matching_events = []
     
+    print(f"  Querying {len(relays)} relay(s) for app definition...")
+    
     for relay in relays:
         try:
+            print(f"    Checking {relay}...")
             # Build nak command to query for kind 32267 with specific d tag
             cmd = [
                 'nak', 'req',
@@ -452,14 +455,21 @@ def fetch_zapstore_app_def(
             )
             
             if result.returncode != 0:
-                print(f"  Warning: Query to {relay} failed: {result.stderr}")
+                print(f"      ✗ Query failed: {result.stderr}")
+                continue
+            
+            # Check if we got any output
+            if not result.stdout.strip():
+                print(f"      ✗ No response from relay")
                 continue
             
             # Parse output - relay returns newline-delimited JSON
+            line_count = 0
             for line in result.stdout.strip().split('\n'):
                 if not line:
                     continue
                 
+                line_count += 1
                 try:
                     event = json.loads(line)
                     
@@ -485,16 +495,23 @@ def fetch_zapstore_app_def(
                     # Deduplicate by event ID
                     event_id = event.get('id')
                     if not any(e.get('id') == event_id for e in matching_events):
+                        print(f"      ✓ Found matching event: {event_id[:8]}...")
                         matching_events.append(event)
                         
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    print(f"      ✗ Failed to parse JSON: {e}")
                     continue
+            
+            if line_count == 0:
+                print(f"      ✗ No events returned")
+            elif len(matching_events) == 0:
+                print(f"      ✗ {line_count} event(s) returned, but none matched")
                     
         except subprocess.TimeoutExpired:
-            print(f"  Warning: Query to {relay} timed out")
+            print(f"      ✗ Query timed out after 30s")
             continue
         except Exception as e:
-            print(f"  Warning: Error querying {relay}: {e}")
+            print(f"      ✗ Error: {e}")
             continue
     
     return matching_events
