@@ -38,6 +38,9 @@ def load_state(state_file: str = "state.json") -> Dict:
             return json.load(f)
     except FileNotFoundError:
         return {}
+    except json.JSONDecodeError:
+        # File exists but is empty or contains invalid JSON
+        return {}
 
 
 def save_state(state: Dict, state_file: str = "state.json"):
