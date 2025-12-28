@@ -43,22 +43,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - uses: snow-actions/nostr@v1.8.2
-        with:
-          relays: wss://relay.primal.net
-          private-key: nsec1k792zawwt097fwgu3fw2vzqj87hp9q8rvrfzlrl6c9s29gt04d6qlltljr
-          content: |
-            Text message
-        id: publish
-      - run: echo "${event}"
-        env:
-          event: ${{ steps.publish.outputs.event }}
       - name: Install nak (Nostr CLI)
         run: |
-          go install -tags=debug github.com/fiatjaf/nak@v0.16.2 # > /dev/null 2>&1
+          #go install -tags=debug github.com/fiatjaf/nak@v0.16.2 > /dev/null 2>&1
+          go install github.com/fiatjaf/nak@v0.16.2 > /dev/null 2>&1
           nak --version
-          RUST_LOG=debug nak req -k 1 --limit 1 wss://relay.primal.net -v
-          RUST_LOG=debug nak event wss://relay.primal.net -v
+          #RUST_LOG=debug nak req -k 1 --limit 1 wss://relay.primal.net -v
+          #RUST_LOG=debug nak event wss://relay.primal.net -v
         env:
           RUST_BACKTRACE: 1
       - name: Check for new versions
