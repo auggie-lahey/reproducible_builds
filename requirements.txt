@@ -6,5 +6,8 @@ PyYAML>=6.0
 # HTTP requests
 requests>=2.31.0
 
+# Nostr library for key operations
+nostr>=0.6.0
+
 # Nostr event signing and publishing (via nak CLI tool)
 # Install nak separately: https://github.com/0xtrm/nak
