@@ -2,7 +2,7 @@
   "kind": 31871,
   "tags": [
     ["d", "{{NPUB}}:reproducible-{{APP_ID}}-{{VERSION}}"],
-    ["e", "{{ASSERTION_EVENT_ID}}", "", "reproducibility-assertion"],
+    ["e", "{{ASSERTION_EVENT_ID}}"],
     ["s", "verified"],
     ["v", "{{VALIDITY}}"]
   ],
