@@ -1,0 +1,55 @@
+# Configuration for Reproducible Build Attestation System
+
+# Nostr configuration
+nostr:
+  # Generated with: nak key generate
+  # Public key (npub): npub14dfhr2vvv5nkwqva92t8yxexjn82w4g2fnpsme43fdff4fg3j29qhgxrz5
+  nsec: "nsec1k792zawwt097fwgu3fw2vzqj87hp9q8rvrfzlrl6c9s29gt04d6qlltljr"
+  relays:
+    - "wss://relay.zapstore.dev"
+    - "wss://nos.lol"
+    - "wss://relay.primal.net"
+    - "wss://relay.damus.io"
+
+# App mappings: Zapstore -> IzzyOnDroid
+# Each entry maps an app ID in both systems
+apps:
+  org.fossify.calendar:
+    izzy_appid: "org.fossify.calendar"
+    zapstore_appid: "org.fossify.calendar"
+    # Optional: Specify pubkey to validate against specific app definition
+    # If multiple app definitions exist with the same d tag, this will be used
+    # zapstore_pubkey: "78ce6faa72264387284e647ba6938995735ec8c7d5c5a65737e55130f026307d"
+    # Izzy's log file name (usually same as appid)
+    izzy_log_file: "org.fossify.calendar.json"
+    # Architecture (default for most Android apps)
+    arch: "armeabi-v7a"
+    # Commit/tag to use (can be version tag or commit hash)
+    commit_template: "v{version}"
+
+# GitHub/Codeberg API configuration
+github:
+  # IzzyOnDroid repo for reproducible build logs
+  rbtlog_repo: "IzzyOnDroid/rbtlog"
+  base_url: "https://codeberg.org/api/v1/repos"
+  # Branch to fetch logs from
+  branch: "master"
+  # Log files directory
+  logs_path: "logs"
+
+# State tracking
+state:
+  # File to store last checked versions
+  state_file: "state.json"
+  # How often to check (in hours)
+  check_interval: 24
+
+# GitHub Actions configuration
+actions:
+  # Schedule in cron format (UTC)
+  # Default: daily at 2 AM UTC
+  schedule: "0 2 * * *"
+  # Enable manual workflow dispatch
+  manual_trigger: true
+  # Echo events before publishing (for review)
+  echo_before_publish: true

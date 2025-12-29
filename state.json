@@ -1,0 +1,12 @@
+{
+  "org.fossify.calendar": {
+    "1.9.0": {
+      "checked": true,
+      "event_id": "00ed7e26737ef9a1c321f610c6518b922b2b529c81be733d4f3bc0ee82084862"
+    },
+    "1.8.1": {
+      "checked": true,
+      "event_id": "d446d7726867fd3dfc5454f2c7d0f5ad886d97047ae6433cb847c5676a050d61"
+    }
+  }
+}
