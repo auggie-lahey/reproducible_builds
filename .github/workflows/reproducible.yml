@@ -52,7 +52,7 @@ jobs:
           #RUST_LOG=debug nak event wss://relay.primal.net -v
         env:
           RUST_BACKTRACE: 1
-      - name: Check for new versions
+      - name: IzzyBootstrap
         env:
           APP_ID: ${{ github.event.inputs.app }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}

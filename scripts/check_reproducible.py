@@ -443,22 +443,43 @@ def extract_pubkey_from_nsec(nsec: str) -> str:
     """
     Extract npub (public key) from nsec (private key).
     
-    For now, we'll use nak to decode it.
+    Uses the nostr library to decode bech32 keys.
     """
-    import subprocess
-    
     try:
-        result = subprocess.run(
-            ['nak', 'key', 'public', nsec],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        from nostr.key import PrivateKey
+        import hashlib
         
-        if result.returncode == 0:
-            return result.stdout.strip()
+        # Decode nsec (bech32)
+        if nsec.startswith('nsec1'):
+            private_key = PrivateKey.from_nsec(nsec)
+            return private_key.public_key.bech32()
         else:
-            print(f"Warning: Could not extract pubkey from nsec")
+            # Fallback: try treating it as a hex key
+            try:
+                private_key = PrivateKey(bytes.fromhex(nsec))
+                return private_key.public_key.bech32()
+            except:
+                print(f"Warning: Could not extract pubkey from nsec")
+                return ""
+    except ImportError:
+        print("Warning: nostr library not installed, falling back to nak")
+        # Fallback to nak command if library not available
+        import subprocess
+        try:
+            result = subprocess.run(
+                ['nak', 'key', 'public', nsec],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                return result.stdout.strip()
+            else:
+                print(f"Warning: Could not extract pubkey from nsec")
+                return ""
+        except Exception as e:
+            print(f"Warning: Error extracting pubkey: {e}")
             return ""
     except Exception as e:
         print(f"Warning: Error extracting pubkey: {e}")
