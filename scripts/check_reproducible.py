@@ -443,46 +443,24 @@ def extract_pubkey_from_nsec(nsec: str) -> str:
     """
     Extract npub (public key) from nsec (private key).
     
-    Uses the nostr library to decode bech32 keys.
+    Uses the nak command-line tool to decode bech32 keys.
     """
     try:
-        from nostr.key import PrivateKey
-        import hashlib
+        result = subprocess.run(
+            ['nak', 'key', 'public', nsec],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
         
-        # Decode nsec (bech32)
-        if nsec.startswith('nsec1'):
-            private_key = PrivateKey.from_nsec(nsec)
-            return private_key.public_key.bech32()
+        if result.returncode == 0:
+            npub = result.stdout.strip()
+            return npub
         else:
-            # Fallback: try treating it as a hex key
-            try:
-                private_key = PrivateKey(bytes.fromhex(nsec))
-                return private_key.public_key.bech32()
-            except:
-                print(f"Warning: Could not extract pubkey from nsec")
-                return ""
-    except ImportError:
-        print("Warning: nostr library not installed, falling back to nak")
-        # Fallback to nak command if library not available
-        import subprocess
-        try:
-            result = subprocess.run(
-                ['nak', 'key', 'public', nsec],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            
-            if result.returncode == 0:
-                return result.stdout.strip()
-            else:
-                print(f"Warning: Could not extract pubkey from nsec")
-                return ""
-        except Exception as e:
-            print(f"Warning: Error extracting pubkey: {e}")
+            print(f"Warning: nak key public failed: {result.stderr}")
             return ""
     except Exception as e:
-        print(f"Warning: Error extracting pubkey: {e}")
+        print(f"Warning: Failed to extract npub: {e}")
         return ""
 
 
